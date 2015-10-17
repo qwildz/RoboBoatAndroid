@@ -25,7 +25,7 @@ public class DataParser {
     private static int bufferPos = 0;
     private static String bufferedString = "";
 
-    private static final char SOL = '^';
+    private static final char SOL = '{';
     private static final char EOL = '$';
 
     public static void setOnReadableDataAvailableListener(OnReadableDataAvailableListener listener) {
