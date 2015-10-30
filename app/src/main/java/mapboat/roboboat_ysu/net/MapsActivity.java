@@ -1,15 +1,21 @@
 package mapboat.roboboat_ysu.net;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
-import android.support.design.widget.FloatingActionButton;
+
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.github.clans.fab.FloatingActionButton;
+import com.github.clans.fab.FloatingActionMenu;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -31,21 +37,59 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private static final String TAG = MapsActivity.class.getSimpleName();
 
-    TextView tvBoatStatus;
+    TextView tvBoatLocation, tvBoatStatus, tvBoatCommand;
+
+    private FloatingActionMenu fabMenu;
     private FloatingActionButton fabLocateBoat;
+    private FloatingActionButton fabStartBoat;
+    private FloatingActionButton fabStopBoat;
 
     private GoogleMap mMap;
     private Marker boatMarker, targetMarker;
 
     private BluetoothSPP bt;
 
+    private int countLastTryResendCommand = 2;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
+        tvBoatLocation = (TextView) findViewById(R.id.t_boat_location);
         tvBoatStatus = (TextView) findViewById(R.id.t_boat_status);
-        fabLocateBoat = (FloatingActionButton) findViewById(R.id.b_locate_boat);
+        tvBoatCommand = (TextView) findViewById(R.id.t_boat_command);
+
+        fabMenu = (FloatingActionMenu) findViewById(R.id.menu);
+        fabLocateBoat = (FloatingActionButton) findViewById(R.id.fab_locate);
+        fabStartBoat = (FloatingActionButton) findViewById(R.id.fab_start);
+        fabStopBoat = (FloatingActionButton) findViewById(R.id.fab_stop);
+
+        fabStartBoat.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                fabMenu.close(true);
+                fabStopBoat.show(true);
+
+                CommandData.idc++;
+                CommandData.run = true;
+
+                sendCommnd();
+            }
+        });
+
+        fabStopBoat.hide(false);
+        fabStopBoat.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                fabStopBoat.hide(true);
+
+                CommandData.idc++;
+                CommandData.run = false;
+
+                sendCommnd();
+            }
+        });
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -55,25 +99,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setupBluetooth();
         setupDataParser();
 
-//        fabLocateBoat.setOnClickListener(new View.OnClickListener() {
-//            public void onClick(View v) {
-//                if (bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
-//                    bt.disconnect();
-//                } else {
-        if (bt.getServiceState() != BluetoothState.STATE_CONNECTED) {
-            Intent intent = new Intent(getApplicationContext(), DeviceList.class);
-            intent.putExtra("bluetooth_devices", "Bluetooth devices");
-            intent.putExtra("no_devices_found", "No device");
-            intent.putExtra("scanning", "Scanning");
-            intent.putExtra("scan_for_devices", "Search");
-            intent.putExtra("select_device", "Select");
-            intent.putExtra("layout_list", R.layout.device_layout_list);
-            intent.putExtra("layout_text", R.layout.device_layout_text);
-            startActivityForResult(intent, BluetoothState.REQUEST_CONNECT_DEVICE);
+        if (bt.getServiceState() != BluetoothState.STATE_CONNECTED && bt.isBluetoothEnabled()) {
+            connectBluetooth();
         }
-//                }
-//            }
-//        });
     }
 
     @Override
@@ -89,7 +117,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onStart();
 
         if (!bt.isBluetoothEnabled()) {
-            bt.enable();
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, BluetoothState.REQUEST_ENABLE_BT);
         } else {
             if (!bt.isServiceAvailable()) {
                 bt.setupService();
@@ -105,6 +134,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if (requestCode == BluetoothState.REQUEST_ENABLE_BT) {
             if (resultCode == Activity.RESULT_OK) {
                 bt.setupService();
+                bt.startService(BluetoothState.DEVICE_OTHER);
+
+                if (bt.getServiceState() != BluetoothState.STATE_CONNECTED) {
+                    connectBluetooth();
+                }
             } else {
                 Toast.makeText(getApplicationContext()
                         , "Bluetooth was not enabled."
@@ -112,6 +146,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 finish();
             }
         }
+    }
+
+    private void connectBluetooth() {
+        Intent intent = new Intent(getApplicationContext(), DeviceList.class);
+        intent.putExtra("bluetooth_devices", "Bluetooth devices");
+        intent.putExtra("no_devices_found", "No device");
+        intent.putExtra("scanning", "Scanning");
+        intent.putExtra("scan_for_devices", "Search");
+        intent.putExtra("select_device", "Select");
+        intent.putExtra("layout_list", R.layout.device_layout_list);
+        intent.putExtra("layout_text", R.layout.device_layout_text);
+        startActivityForResult(intent, BluetoothState.REQUEST_CONNECT_DEVICE);
     }
 
     /**
@@ -132,7 +178,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         MarkerOptions markerOptions = new MarkerOptions()
                 .position(position)
                 .title("Boat Position")
-                //.snippet("Latitude:" + 0 + " \nLongitude:" + 0)
+                        //.snippet("Latitude:" + 0 + " \nLongitude:" + 0)
                 .anchor(0.5f, 0.5f)
                 .flat(true)
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_navigation_black_48dp))
@@ -140,9 +186,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         boatMarker = mMap.addMarker(markerOptions);
 
-        tvBoatStatus.setText("Lat: " + boatMarker.getPosition().latitude + " Lng: " + boatMarker.getPosition().longitude + " Deg: " + boatMarker.getRotation());
-
-        markerOptions =  new MarkerOptions()
+        markerOptions = new MarkerOptions()
                 .position(position)
                 .title("Target Position")
                 .draggable(true)
@@ -169,6 +213,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onMarkerDragEnd(Marker marker) {
                 if (marker.getId().equals(targetMarker.getId())) {
                     marker.setSnippet("Lat: " + marker.getPosition().latitude + " Lng: " + marker.getPosition().longitude);
+                    CommandData.tlat = marker.getPosition().latitude;
+                    CommandData.tlng = marker.getPosition().longitude;
                     Toast.makeText(getBaseContext(), "Target move to: " + marker.getPosition().toString(), Toast.LENGTH_SHORT).show();
                 }
             }
@@ -194,6 +240,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (!targetMarker.isVisible())
                     targetMarker.setVisible(true);
 
+                CommandData.tlat = latLng.latitude;
+                CommandData.tlng = latLng.longitude;
+
                 Toast.makeText(getBaseContext(), "Target move to: " + latLng.toString(), Toast.LENGTH_SHORT).show();
             }
         });
@@ -208,6 +257,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         .build();
 
                 mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+
+                fabMenu.close(true);
             }
         });
     }
@@ -311,13 +362,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         data = data.substring(0, data.length() - 1);
         LogHelper.simpleLog(TAG, data);
         BoatData.parseBoatData(data);
-        
+Double.
+        if(BoatData.last_id_command != CommandData.idc) {
+            LogHelper.simpleLog(TAG, "Command not received");
+            LogHelper.simpleLog(TAG, "Try resend command");
+            countLastTryResendCommand--;
+            if(countLastTryResendCommand == 0) {
+                countLastTryResendCommand = 2;
+                sendCommnd();
+            }
+        }
+
         updateBoatStatus();
     }
-    
+
     private void updateBoatStatus() {
         boatMarker.setRotation(((float) BoatData.bearing));
         boatMarker.setPosition(new LatLng(BoatData.lat, BoatData.lng));
+        tvBoatLocation.setText("Lat: " + boatMarker.getPosition().latitude + " Lng: " + boatMarker.getPosition().longitude + " Deg: " + boatMarker.getRotation());
+        tvBoatStatus.setText("Run: " + BoatData.run + " Completed : " + BoatData.completed);
+        tvBoatCommand.setText("Run: " + CommandData.run + "TLat: " + CommandData.tlat + " TLng: " + CommandData.tlng);
+    }
+
+    private void sendCommnd() {
+        String json = CommandData.parseBoatData();
+        LogHelper.simpleLog(TAG, "Length : " + json.length() + " Message : " + json);
+        bt.send(json, false);
 
     }
 }

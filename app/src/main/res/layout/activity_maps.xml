@@ -1,6 +1,7 @@
 <android.support.design.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:fab="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MapActivity">
@@ -10,13 +11,43 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-
-        <fragment
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_weight="1.0"
-            android:layout_height="0dp"
-            android:id="@+id/map"
-            android:name="com.google.android.gms.maps.SupportMapFragment" />
+            android:layout_height="0dp">
+
+            <fragment
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/map"
+                android:name="com.google.android.gms.maps.SupportMapFragment" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/white"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingLeft="@dimen/activity_horizontal_margin"
+                android:paddingRight="@dimen/activity_horizontal_margin"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <TextView
+                    android:id="@+id/t_boat_status"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No Boat Status"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/t_boat_command"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No Boat Command" />
+
+            </LinearLayout>
+        </FrameLayout>
 
         <LinearLayout
             android:id="@+id/footer"
@@ -29,23 +60,81 @@
             android:paddingRight="@dimen/activity_horizontal_margin">
 
             <TextView
-                android:id="@+id/t_boat_status"
+                android:id="@+id/t_boat_location"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Testing" />
+                android:text="No Boat Location" />
 
         </LinearLayout>
 
     </LinearLayout>
 
-    <android.support.design.widget.FloatingActionButton
-        android:id="@+id/b_locate_boat"
+    <com.github.clans.fab.FloatingActionMenu
+        android:id="@+id/menu"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:clickable="true"
-        android:src="@drawable/ic_location_searching_white_48dp"
+        android:layout_marginRight="8dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="13dp"
         app:layout_anchor="@id/footer"
-        app:layout_anchorGravity="bottom|right|end"/>
+        app:layout_anchorGravity="bottom|right|end"
+        fab:menu_fab_size="normal"
+        fab:menu_colorNormal="@color/colorAccent"
+        fab:menu_colorPressed="@color/colorAccent">
+
+        <com.github.clans.fab.FloatingActionButton
+            android:id="@+id/fab_speed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_signal_cellular_connected_no_internet_4_bar_white_24dp"
+            fab:menu_colorNormal="@color/colorAccent"
+            fab:menu_colorPressed="@color/colorAccent"
+            fab:fab_size="mini"
+            fab:fab_label="Set Max Speed" />
+
+        <com.github.clans.fab.FloatingActionButton
+            android:id="@+id/fab_start"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_play_arrow_white_24dp"
+            fab:menu_colorNormal="@color/colorAccent"
+            fab:menu_colorPressed="@color/colorAccent"
+            fab:fab_size="mini"
+            fab:fab_label="Start Boat" />
+
+        <com.github.clans.fab.FloatingActionButton
+            android:id="@+id/fab_manual"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_gamepad_white_24dp"
+            fab:menu_colorNormal="@color/colorAccent"
+            fab:menu_colorPressed="@color/colorAccent"
+            fab:fab_size="mini"
+            fab:fab_label="Manual Mode" />
+
+        <com.github.clans.fab.FloatingActionButton
+            android:id="@+id/fab_locate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_location_searching_white_24dp"
+            fab:menu_colorNormal="@color/colorAccent"
+            fab:menu_colorPressed="@color/colorAccent"
+            fab:fab_size="mini"
+            fab:fab_label="Locate" />
+
+    </com.github.clans.fab.FloatingActionMenu>
+
+    <com.github.clans.fab.FloatingActionButton
+        android:id="@+id/fab_stop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="8dp"
+        android:layout_marginBottom="13dp"
+        android:src="@drawable/ic_stop_white_24dp"
+        app:layout_anchor="@id/footer"
+        app:layout_anchorGravity="bottom|right|end"
+        fab:menu_colorNormal="@color/colorAccent"
+        fab:menu_colorPressed="@color/colorAccent"
+        fab:menu_fab_size="normal" />
 
 </android.support.design.widget.CoordinatorLayout>

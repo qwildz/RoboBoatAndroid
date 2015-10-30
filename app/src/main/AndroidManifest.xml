@@ -33,7 +33,7 @@
 
         <activity
             android:name="mapboat.roboboat_ysu.net.MapsActivity"
-            android:label="@string/title_activity_maps" >
+            android:label="@string/title_activity_maps">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

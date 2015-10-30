@@ -21,6 +21,14 @@ public class BoatData {
 
     public static double bearing;
 
+    public static boolean run;
+    public static boolean completed;
+
+    public static int last_id_command;
+
+    public static int left_motor;
+    public static int right_motor;
+
     public static void parseBoatData(String json) {
         if(! isJSONValid(json)) return;
 
@@ -38,6 +46,19 @@ public class BoatData {
 
             // Get Bearing
             bearing = jsonObject.getAsJsonPrimitive("bea").getAsDouble();
+
+            run =  jsonObject.getAsJsonPrimitive("run").getAsBoolean();
+            completed =  jsonObject.getAsJsonPrimitive("cmp").getAsBoolean();
+
+            last_id_command = jsonObject.getAsJsonPrimitive("idc").getAsInt();
+
+            if(jsonObject.has("lmt")) {
+                left_motor = jsonObject.getAsJsonPrimitive("lmt").getAsInt();
+            }
+
+            if(jsonObject.has("rmt")) {
+                right_motor = jsonObject.getAsJsonPrimitive("rmt").getAsInt();
+            }
         }
     }
 
