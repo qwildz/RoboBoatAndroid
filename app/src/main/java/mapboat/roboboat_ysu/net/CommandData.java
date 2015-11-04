@@ -26,6 +26,10 @@ public class CommandData extends SerializationData {
     public static int lmt = 0;
     public static int rmt = 0;
 
+    public static int kP = 0;
+    public static int kI = 0;
+    public static int kD = 0;
+
     public static String parseBoatData() {
         Gson gson = new GsonBuilder().excludeFieldsWithModifiers(Modifier.TRANSIENT).create();
         return gson.toJson(new CommandData());
@@ -41,6 +45,9 @@ public class CommandData extends SerializationData {
         max = input.readInteger();
         lmt = input.readInteger();
         rmt = input.readInteger();
+        kP = input.readInteger();
+        kI = input.readInteger();
+        kD = input.readInteger();
     }
 
     @Override
@@ -53,6 +60,9 @@ public class CommandData extends SerializationData {
         output.writeInteger(max);
         output.writeInteger(lmt);
         output.writeInteger(rmt);
+        output.writeInteger(kP);
+        output.writeInteger(kI);
+        output.writeInteger(kD);
     }
 
     @Override
@@ -65,6 +75,9 @@ public class CommandData extends SerializationData {
         dataSize += SerializationTypes.SIZEOF_INTEGER;    // max
         dataSize += SerializationTypes.SIZEOF_INTEGER;    // lmt
         dataSize += SerializationTypes.SIZEOF_INTEGER;    // rmt
+        dataSize += SerializationTypes.SIZEOF_INTEGER;    // kP
+        dataSize += SerializationTypes.SIZEOF_INTEGER;    // kI
+        dataSize += SerializationTypes.SIZEOF_INTEGER;    // kD
         return (dataSize);
     }
 }

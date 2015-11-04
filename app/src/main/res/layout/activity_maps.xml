@@ -83,6 +83,16 @@
         fab:menu_colorPressed="@color/colorAccent">
 
         <com.github.clans.fab.FloatingActionButton
+            android:id="@+id/fab_tune"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_tune_white_24dp"
+            fab:menu_colorNormal="@color/colorAccent"
+            fab:menu_colorPressed="@color/colorAccent"
+            fab:fab_size="mini"
+            fab:fab_label="PID Tuning" />
+
+        <com.github.clans.fab.FloatingActionButton
             android:id="@+id/fab_speed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

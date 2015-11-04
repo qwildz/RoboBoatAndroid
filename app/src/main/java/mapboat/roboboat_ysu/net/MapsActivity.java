@@ -51,6 +51,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private FloatingActionButton fabStopBoat;
     private FloatingActionButton fabManual;
     private FloatingActionButton fabSpeed;
+    private FloatingActionButton fabTune;
 
     private GoogleMap mMap;
     private Marker boatMarker, targetMarker;
@@ -78,6 +79,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         fabStopBoat = (FloatingActionButton) findViewById(R.id.fab_stop);
         fabManual = (FloatingActionButton) findViewById(R.id.fab_manual);
         fabSpeed = (FloatingActionButton) findViewById(R.id.fab_speed);
+        fabTune = (FloatingActionButton) findViewById(R.id.fab_tune);
 
         fabStartBoat.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -141,6 +143,51 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int id) {
                                 CommandData.max = Integer.parseInt(etMaxSpeed.getText().toString());
+                                CommandData.idc++;
+                                sendCommand();
+                            }
+                        }).setNegativeButton("Cancel",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                dialog.cancel();
+                            }
+                        });
+
+                // create alert dialog
+                AlertDialog alertDialog = alertDialogBuilder.create();
+
+                // show it
+                alertDialog.show();
+            }
+        });
+
+        fabTune.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fabMenu.close(true);
+
+                LayoutInflater li = LayoutInflater.from(context);
+                View promptsView = li.inflate(R.layout.pid_dialog, null);
+
+                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(context);
+
+                alertDialogBuilder.setView(promptsView);
+
+                final EditText etKP = (EditText) promptsView.findViewById(R.id.kP);
+                final EditText etKI = (EditText) promptsView.findViewById(R.id.kI);
+                final EditText etKD = (EditText) promptsView.findViewById(R.id.kD);
+
+                etKP.setText(String.valueOf(CommandData.kP));
+                etKI.setText(String.valueOf(CommandData.kI));
+                etKD.setText(String.valueOf(CommandData.kD));
+
+                // set dialog message
+                alertDialogBuilder.setCancelable(false).setPositiveButton("OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                CommandData.kP = Integer.parseInt(etKP.getText().toString());
+                                CommandData.kI = Integer.parseInt(etKI.getText().toString());
+                                CommandData.kD = Integer.parseInt(etKD.getText().toString());
                                 CommandData.idc++;
                                 sendCommand();
                             }
@@ -491,7 +538,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         boatMarker.setPosition(new LatLng(BoatData.lat, BoatData.lng));
         tvBoatLocation.setText("Lat: " + boatMarker.getPosition().latitude + " Lng: " + boatMarker.getPosition().longitude + " Deg: " + boatMarker.getRotation());
         tvBoatStatus.setText("L: " + BoatData.left_motor + " R: " + BoatData.right_motor + " GPSData: " + BoatData.gps + " Run: " + BoatData.run + " Completed : " + BoatData.completed);
-        tvBoatCommand.setText("Run: " + CommandData.run + " TLat: " + CommandData.tlat + " TLng: " + CommandData.tlng);
+        tvBoatCommand.setText("Run: " + CommandData.run + " TLat: " + CommandData.tlat + " TLng: " + CommandData.tlng + " P: " + CommandData.kP + " I: " + CommandData.kI + " D: " + CommandData.kD);
     }
 
     public static void sendCommand() {
