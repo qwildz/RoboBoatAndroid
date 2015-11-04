@@ -1,16 +1,17 @@
 package mapboat.roboboat_ysu.net;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 
-import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,12 +31,17 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import app.akexorcist.bluetotohspp.library.BluetoothSPP;
 import app.akexorcist.bluetotohspp.library.BluetoothState;
 import app.akexorcist.bluetotohspp.library.DeviceList;
+import jaron.simpleserialization.SerializationData;
+import jaron.simpleserialization.SerializationDataEventListener;
+import jaron.simpleserialization.SerializationSerialConnection;
 import mapboat.roboboat_ysu.net.Utils.LogHelper;
 import mapboat.roboboat_ysu.net.roboboat.R;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private static final String TAG = MapsActivity.class.getSimpleName();
+
+    final Context context = this;
 
     TextView tvBoatLocation, tvBoatStatus, tvBoatCommand;
 
@@ -43,13 +49,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private FloatingActionButton fabLocateBoat;
     private FloatingActionButton fabStartBoat;
     private FloatingActionButton fabStopBoat;
+    private FloatingActionButton fabManual;
+    private FloatingActionButton fabSpeed;
 
     private GoogleMap mMap;
     private Marker boatMarker, targetMarker;
 
-    private BluetoothSPP bt;
+    public static BluetoothSPP bt;
 
-    private int countLastTryResendCommand = 2;
+    public static SerializationSerialConnection simpleSerialization = new SerializationSerialConnection();
+    public static CommandData commandData = new CommandData();
+    public static BoatData boatData = new BoatData();
+
+    public static int countLastTryResendCommand = 2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +76,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         fabLocateBoat = (FloatingActionButton) findViewById(R.id.fab_locate);
         fabStartBoat = (FloatingActionButton) findViewById(R.id.fab_start);
         fabStopBoat = (FloatingActionButton) findViewById(R.id.fab_stop);
+        fabManual = (FloatingActionButton) findViewById(R.id.fab_manual);
+        fabSpeed = (FloatingActionButton) findViewById(R.id.fab_speed);
 
         fabStartBoat.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -74,7 +88,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 CommandData.idc++;
                 CommandData.run = true;
 
-                sendCommnd();
+                sendCommand();
             }
         });
 
@@ -87,7 +101,61 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 CommandData.idc++;
                 CommandData.run = false;
 
-                sendCommnd();
+                sendCommand();
+            }
+        });
+
+        fabManual.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fabMenu.close(true);
+
+                CommandData.idc++;
+                CommandData.aut = false;
+
+                sendCommand();
+
+                Intent iManual = new Intent(getApplicationContext(), ManualModeActivity.class);
+                startActivity(iManual);
+            }
+        });
+
+        fabSpeed.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fabMenu.close(true);
+
+                LayoutInflater li = LayoutInflater.from(context);
+                View promptsView = li.inflate(R.layout.speed_dialog, null);
+
+                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(context);
+
+                alertDialogBuilder.setView(promptsView);
+
+                final EditText etMaxSpeed = (EditText) promptsView.findViewById(R.id.max_speed);
+
+                etMaxSpeed.setText(String.valueOf(CommandData.max));
+
+                // set dialog message
+                alertDialogBuilder.setCancelable(false).setPositiveButton("OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                CommandData.max = Integer.parseInt(etMaxSpeed.getText().toString());
+                                CommandData.idc++;
+                                sendCommand();
+                            }
+                        }).setNegativeButton("Cancel",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                dialog.cancel();
+                            }
+                        });
+
+                // create alert dialog
+                AlertDialog alertDialog = alertDialogBuilder.create();
+
+                // show it
+                alertDialog.show();
             }
         });
 
@@ -102,6 +170,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (bt.getServiceState() != BluetoothState.STATE_CONNECTED && bt.isBluetoothEnabled()) {
             connectBluetooth();
         }
+
+        boatData.setListener(new SerializationDataEventListener() {
+            @Override
+            public void dataUpdate(SerializationData data) {
+                if (CommandData.aut) {
+                    if (BoatData.last_id_command != CommandData.idc) {
+                        LogHelper.simpleLog(TAG, "Command not received");
+                        LogHelper.simpleLog(TAG, "Try resend command");
+                        countLastTryResendCommand--;
+                        if (countLastTryResendCommand == 0) {
+                            countLastTryResendCommand = 2;
+                            sendCommand();
+                        }
+                    }
+                }
+
+                updateBoatStatus();
+            }
+        });
+        simpleSerialization.addDeserializableData(boatData);
     }
 
     @Override
@@ -124,6 +212,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 bt.setupService();
                 bt.startService(BluetoothState.DEVICE_OTHER);
             }
+        }
+    }
+
+    public void onResume() {
+        super.onResume();
+
+        if (bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
+            CommandData.idc++;
+            CommandData.aut = true;
+
+            sendCommand();
         }
     }
 
@@ -213,8 +312,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onMarkerDragEnd(Marker marker) {
                 if (marker.getId().equals(targetMarker.getId())) {
                     marker.setSnippet("Lat: " + marker.getPosition().latitude + " Lng: " + marker.getPosition().longitude);
-                    CommandData.tlat = marker.getPosition().latitude;
-                    CommandData.tlng = marker.getPosition().longitude;
+                    CommandData.tlat = ((float) marker.getPosition().latitude);
+                    CommandData.tlng = ((float) marker.getPosition().longitude);
                     Toast.makeText(getBaseContext(), "Target move to: " + marker.getPosition().toString(), Toast.LENGTH_SHORT).show();
                 }
             }
@@ -240,8 +339,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (!targetMarker.isVisible())
                     targetMarker.setVisible(true);
 
-                CommandData.tlat = latLng.latitude;
-                CommandData.tlng = latLng.longitude;
+                CommandData.tlat = ((float) latLng.latitude);
+                CommandData.tlng = ((float) latLng.longitude);
 
                 Toast.makeText(getBaseContext(), "Target move to: " + latLng.toString(), Toast.LENGTH_SHORT).show();
             }
@@ -253,7 +352,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 CameraPosition cameraPosition = CameraPosition.builder()
                         .target(boatMarker.getPosition())
-                        .zoom(10)
+                        .zoom(18)
                         .build();
 
                 mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
@@ -329,6 +428,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 processData(message);
 
                 LogHelper.simpleLog(TAG, "Length : " + data.length + " Message : " + message);
+
+//                for (int i = 0; i < data.length; i++) {
+//                    LogHelper.simpleLog(TAG, "" + ((int) data[i]));
+//                }
             }
         });
 
@@ -362,32 +465,42 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         data = data.substring(0, data.length() - 1);
         LogHelper.simpleLog(TAG, data);
         BoatData.parseBoatData(data);
-Double.
-        if(BoatData.last_id_command != CommandData.idc) {
-            LogHelper.simpleLog(TAG, "Command not received");
-            LogHelper.simpleLog(TAG, "Try resend command");
-            countLastTryResendCommand--;
-            if(countLastTryResendCommand == 0) {
-                countLastTryResendCommand = 2;
-                sendCommnd();
+
+        if (CommandData.aut) {
+            if (BoatData.last_id_command != CommandData.idc) {
+                LogHelper.simpleLog(TAG, "Command not received");
+                LogHelper.simpleLog(TAG, "Try resend command");
+                countLastTryResendCommand--;
+                if (countLastTryResendCommand == 0) {
+                    countLastTryResendCommand = 2;
+                    sendCommand();
+                }
             }
         }
 
         updateBoatStatus();
     }
 
+    private void processData(byte[] data) {
+        LogHelper.simpleLog(TAG, data.toString());
+        simpleSerialization.read(data);
+    }
+
     private void updateBoatStatus() {
         boatMarker.setRotation(((float) BoatData.bearing));
         boatMarker.setPosition(new LatLng(BoatData.lat, BoatData.lng));
         tvBoatLocation.setText("Lat: " + boatMarker.getPosition().latitude + " Lng: " + boatMarker.getPosition().longitude + " Deg: " + boatMarker.getRotation());
-        tvBoatStatus.setText("Run: " + BoatData.run + " Completed : " + BoatData.completed);
-        tvBoatCommand.setText("Run: " + CommandData.run + "TLat: " + CommandData.tlat + " TLng: " + CommandData.tlng);
+        tvBoatStatus.setText("L: " + BoatData.left_motor + " R: " + BoatData.right_motor + " GPSData: " + BoatData.gps + " Run: " + BoatData.run + " Completed : " + BoatData.completed);
+        tvBoatCommand.setText("Run: " + CommandData.run + " TLat: " + CommandData.tlat + " TLng: " + CommandData.tlng);
     }
 
-    private void sendCommnd() {
-        String json = CommandData.parseBoatData();
-        LogHelper.simpleLog(TAG, "Length : " + json.length() + " Message : " + json);
-        bt.send(json, false);
+    public static void sendCommand() {
+        //String json = CommandData.parseBoatData();
+        //LogHelper.simpleLog(TAG, "Length : " + json.length() + " Message : " + json);
+        //bt.send(json, false);
 
+        byte[] data = simpleSerialization.write(commandData);
+        LogHelper.simpleLog(TAG, "Length : " + data.length + " Message : " + data);
+        bt.send(data, false);
     }
 }
