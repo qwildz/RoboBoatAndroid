@@ -61,6 +61,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public static SerializationSerialConnection simpleSerialization = new SerializationSerialConnection();
     public static CommandData commandData = new CommandData();
     public static BoatData boatData = new BoatData();
+    public static boolean navCompleted = true;
 
     public static int countLastTryResendCommand = 2;
 
@@ -86,6 +87,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onClick(View view) {
                 fabMenu.close(true);
                 fabStopBoat.show(true);
+                targetMarker.setDraggable(false);
 
                 CommandData.idc++;
                 CommandData.run = true;
@@ -98,7 +100,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         fabStopBoat.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                fabStopBoat.hide(true);
+                boatStopped();
 
                 CommandData.idc++;
                 CommandData.run = false;
@@ -192,6 +194,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 sendCommand();
                             }
                         }).setNegativeButton("Cancel",
+
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int id) {
                                 dialog.cancel();
@@ -323,7 +326,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         MarkerOptions markerOptions = new MarkerOptions()
                 .position(position)
-                .title("Boat Position")
+                .title(null)
+                .snippet(null)
                         //.snippet("Latitude:" + 0 + " \nLongitude:" + 0)
                 .anchor(0.5f, 0.5f)
                 .flat(true)
@@ -366,30 +370,32 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
+//        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+//            @Override
+//            public boolean onMarkerClick(Marker marker) {
 //                if (marker.getId().equals(targetMarker.getId())) {
 //                    marker.setSnippet("Lat: " + marker.getPosition().latitude + " Lng: " + marker.getPosition().longitude);
 //                }
-
-                return false;
-            }
-        });
+//
+//                return false;
+//            }
+//        });
 
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
-                targetMarker.setPosition(latLng);
-                targetMarker.setSnippet("Lat: " + latLng.latitude + " Lng: " + latLng.longitude);
+                if (!CommandData.run) {
+                    targetMarker.setPosition(latLng);
+                    targetMarker.setSnippet("Lat: " + latLng.latitude + " Lng: " + latLng.longitude);
 
-                if (!targetMarker.isVisible())
-                    targetMarker.setVisible(true);
+                    if (!targetMarker.isVisible())
+                        targetMarker.setVisible(true);
 
-                CommandData.tlat = ((float) latLng.latitude);
-                CommandData.tlng = ((float) latLng.longitude);
+                    CommandData.tlat = ((float) latLng.latitude);
+                    CommandData.tlng = ((float) latLng.longitude);
 
-                Toast.makeText(getBaseContext(), "Target move to: " + latLng.toString(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getBaseContext(), "Target move to: " + latLng.toString(), Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
@@ -525,11 +531,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         }
 
+        if(BoatData.completed && !navCompleted) {
+            navCompleted = true;
+            boatStopped();
+            Toast.makeText(context, "Navigation Completed!", Toast.LENGTH_LONG).show();
+        } else {
+            navCompleted = BoatData.completed;
+        }
+
         updateBoatStatus();
     }
 
     private void processData(byte[] data) {
-        LogHelper.simpleLog(TAG, data.toString());
         simpleSerialization.read(data);
     }
 
@@ -549,5 +562,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         byte[] data = simpleSerialization.write(commandData);
         LogHelper.simpleLog(TAG, "Length : " + data.length + " Message : " + data);
         bt.send(data, false);
+    }
+
+    private void boatStopped() {
+        fabStopBoat.hide(true);
+        targetMarker.setDraggable(true);
     }
 }

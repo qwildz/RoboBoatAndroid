@@ -82,7 +82,7 @@ public class ManualModeActivity extends AppCompatActivity {
 
                 sendCommand();
             }
-        }, 50L);
+        }, 100L);
 
         steerStick.setOnJoystickMoveListener(new JoystickView.OnJoystickMoveListener() {
 
@@ -115,7 +115,7 @@ public class ManualModeActivity extends AppCompatActivity {
 
                 sendCommand();
             }
-        }, 50L);
+        }, 100L);
     }
 
     // Initiating Menu XML file (menu.xml)
